@@ -37,7 +37,17 @@ Seug⌫⌫guna⌫da línsa.⌫⌫⌫ea.⏎
 
 ## Installation
 
-Requires macOS and [uv](https://docs.astral.sh/uv/). Python is downloaded automatically if needed.
+### With Homebrew
+
+```sh
+brew install JuanIsernGhosn/tap/autotyper
+```
+
+Later updates come with `brew upgrade`.
+
+### With uv
+
+Requires [uv](https://docs.astral.sh/uv/). Python is downloaded automatically if needed.
 
 ```sh
 uv tool install git+https://github.com/JuanIsernGhosn/autotyper
