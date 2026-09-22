@@ -103,3 +103,77 @@ def test_real_run_without_accessibility_returns_2(tmp_path, monkeypatch, capsys)
     assert cli.main([str(f), "--countdown", "0"]) == 2
     assert "Accessibility" in capsys.readouterr().err
     assert calls == [True], "the CLI must ask macOS to show its permission prompt"
+
+
+def _fake_env(monkeypatch):
+    class FakeHotkeys:
+        def __init__(self, *a, **k):
+            pass
+
+        def start(self):
+            pass
+
+        def stop(self):
+            pass
+
+    monkeypatch.setattr(cli, "HotkeyListener", FakeHotkeys)
+    monkeypatch.setattr(cli, "accessibility_trusted", lambda prompt=False: True)
+    monkeypatch.setattr(cli, "frontmost_app_name", lambda: "Google Chrome")
+
+
+def test_ctrl_c_during_countdown_exits_130_without_traceback(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("ab")
+    _fake_env(monkeypatch)
+
+    def sleep(_):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli.time, "sleep", sleep)
+    assert cli.main([str(f), "--countdown", "3"]) == 130
+    out = capsys.readouterr().out
+    assert "aborted" in out
+
+
+def test_ctrl_c_during_typing_exits_130_and_reports_progress(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("abc")
+    _fake_env(monkeypatch)
+    pressed = []
+
+    class FakeInjector:
+        def press(self, key, hold_s):
+            pressed.append(key)
+            if len(pressed) == 2:
+                raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "PynputInjector", FakeInjector)
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    assert cli.main([str(f), "--countdown", "0", "--error-rate", "0"]) == 130
+    assert "aborted after 1 keystrokes" in capsys.readouterr().out
+
+
+def test_injector_failure_exits_1_with_short_message(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("ab")
+    _fake_env(monkeypatch)
+
+    class BrokenInjector:
+        def press(self, key, hold_s):
+            raise RuntimeError("event tap failed")
+
+    monkeypatch.setattr(cli, "PynputInjector", BrokenInjector)
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    assert cli.main([str(f), "--countdown", "0", "--error-rate", "0"]) == 1
+    err = capsys.readouterr().err
+    assert "event tap failed" in err
+    assert "Traceback" not in err
+
+
+def test_invalid_yaml_profile_exits_1(tmp_path, capsys):
+    prof = tmp_path / "p.yaml"
+    prof.write_text("cps: [unclosed\n")
+    f = tmp_path / "t.txt"
+    f.write_text("ab")
+    assert cli.main([str(f), "--dry-run", "--profile", str(prof)]) == 1
+    assert "profile" in capsys.readouterr().err

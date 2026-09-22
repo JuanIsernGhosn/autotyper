@@ -63,3 +63,17 @@ def test_focus_guard_ignored_when_check_returns_none():
     inj = RecordingInjector()
     result = run(EVENTS, inj, Controls(), sleep=lambda _: None, focus_check=lambda: None, app_name="Google Chrome")
     assert result.pressed == 3
+
+
+def test_keyboard_interrupt_is_a_clean_abort():
+    inj = RecordingInjector()
+    calls = {"n": 0}
+
+    def sleep(_):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise KeyboardInterrupt
+
+    result = run(EVENTS, inj, Controls(), sleep=sleep)
+    assert result == RunResult(pressed=1, aborted=True)
+    assert [k for k, _ in inj.pressed] == ["a"]
