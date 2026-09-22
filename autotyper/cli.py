@@ -102,11 +102,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"seed: {seed}")
         return EXIT_OK
 
-    if accessibility_trusted() is False:
+    if accessibility_trusted(prompt=True) is False:
         print(
             "error: this process is not allowed to control the keyboard.\n"
-            "Enable it in System Settings > Privacy & Security > Accessibility "
-            "for your terminal app (and Input Monitoring for the hotkeys), then retry.",
+            "macOS should have shown a dialog naming the app to allow. Enable it in\n"
+            "System Settings > Privacy & Security > Accessibility (and Input Monitoring\n"
+            "for the hotkeys), reopen the terminal window, then retry.\n"
+            f"If the list shows no terminal app, add this binary: {sys.executable}",
             file=sys.stderr,
         )
         return EXIT_PERMISSION
