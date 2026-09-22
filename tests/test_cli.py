@@ -1,0 +1,98 @@
+import io
+
+from autotyper import cli
+
+
+def test_dry_run_prints_transcript_and_summary(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("hola mundo")
+    code = cli.main([str(f), "--dry-run", "--seed", "1", "--error-rate", "0"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "hola mundo" in out
+    assert "duration:" in out
+
+
+def test_dry_run_reads_stdin(monkeypatch, capsys):
+    monkeypatch.setattr("sys.stdin", io.StringIO("desde stdin"))
+    code = cli.main(["-", "--dry-run", "--seed", "1", "--error-rate", "0"])
+    assert code == 0
+    assert "desde stdin" in capsys.readouterr().out
+
+
+def test_dry_run_verbose_lists_events(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("ab")
+    cli.main([str(f), "--dry-run", "--verbose", "--seed", "1", "--error-rate", "0"])
+    out = capsys.readouterr().out
+    assert "'a'" in out and "'b'" in out and "hold" in out
+
+
+def test_missing_file_returns_1(capsys):
+    assert cli.main(["/no/such/file.txt", "--dry-run"]) == 1
+    assert "not found" in capsys.readouterr().err
+
+
+def test_empty_text_returns_1(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("   \n")
+    assert cli.main([str(f), "--dry-run"]) == 1
+    assert "empty" in capsys.readouterr().err
+
+
+def test_profile_and_flags_combine(tmp_path, capsys):
+    prof = tmp_path / "p.yaml"
+    prof.write_text("cps: 2\nerror_rate: 0\nthink_pause_rate: 0\n")
+    f = tmp_path / "t.txt"
+    f.write_text("a" * 20)
+    cli.main([str(f), "--dry-run", "--profile", str(prof), "--seed", "1", "--cps", "20"])
+    out = capsys.readouterr().out
+    # 20 chars at 20 cps is about 1 s, not 10 s
+    line = next(l for l in out.splitlines() if l.startswith("duration:"))
+    seconds = float(line.split()[1])
+    assert seconds < 3
+
+
+def test_invalid_config_returns_1(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("hola")
+    assert cli.main([str(f), "--dry-run", "--layout", "fr"]) == 1
+    assert "layout" in capsys.readouterr().err
+
+
+def test_real_run_uses_injected_dependencies(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("ab")
+    pressed = []
+
+    class FakeInjector:
+        def press(self, key, hold_s):
+            pressed.append(key)
+
+    class FakeHotkeys:
+        def __init__(self, *a, **k):
+            self.started = False
+
+        def start(self):
+            self.started = True
+
+        def stop(self):
+            pass
+
+    monkeypatch.setattr(cli, "PynputInjector", FakeInjector)
+    monkeypatch.setattr(cli, "HotkeyListener", FakeHotkeys)
+    monkeypatch.setattr(cli, "accessibility_trusted", lambda: True)
+    monkeypatch.setattr(cli, "frontmost_app_name", lambda: "Google Chrome")
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    code = cli.main([str(f), "--seed", "1", "--error-rate", "0", "--countdown", "0"])
+    assert code == 0
+    assert pressed == ["a", "b"]
+    assert "done" in capsys.readouterr().out
+
+
+def test_real_run_without_accessibility_returns_2(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("ab")
+    monkeypatch.setattr(cli, "accessibility_trusted", lambda: False)
+    assert cli.main([str(f), "--countdown", "0"]) == 2
+    assert "Accessibility" in capsys.readouterr().err
