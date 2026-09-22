@@ -1,46 +1,130 @@
 # autotyper
 
-Escribe un texto en el input que tenga el foco (por ejemplo un campo de Chrome
-que bloquea el pegado) imitando a una persona: velocidad variable, pausas tras
-puntuación, errores de tecleo y sus correcciones. Inyecta pulsaciones reales a
-nivel de sistema, así que para la página son indistinguibles de un teclado.
+Type any text into the focused input as if a person were typing it: variable speed, pauses after punctuation, realistic typos and their corrections. Keystrokes are injected at the operating-system level, so they work in inputs that block pasting and are indistinguishable from a real keyboard to the page.
 
-Solo macOS.
+Built for screen recordings and demos where pasting a block of text would look fake.
 
-## Instalación
+macOS only.
+
+## How it works
+
+```
+text file ──▶ planner ──▶ timed keystrokes ──▶ runner ──▶ macOS keyboard events ──▶ Chrome (or any app)
+                 │                                 │
+        rhythm, pauses, typos            pause / abort hotkeys,
+        and corrections                  auto-pause when the target app loses focus
+```
+
+1. The planner turns your text into a list of keystrokes with individual delays and hold times. It is deterministic for a given seed, so a run can be previewed and repeated.
+2. The runner waits for a countdown, then replays the keystrokes through the system keyboard, watching for your hotkeys and for the target app losing focus.
+
+Here is what a preview looks like with a deliberately high error rate. `⌫` is a backspace and `⏎` is Enter:
+
+```
+Holl⌫⌫la, u⌫mundo. Ez⌫sto es una prieb⌫⌫⌫ueba con ñ y tildes: canx⌫ciónn.⌫⌫⌫n.⏎
+Seug⌫⌫guna⌫da línsa.⌫⌫⌫ea.⏎
+```
+
+## Features
+
+- **Human rhythm.** Per-key intervals follow a log-normal distribution around your chosen speed, with a slow drift that produces fast bursts and tired stretches.
+- **Context-aware pauses.** Capitals, digits and symbols are slower. Commas, sentence ends and new paragraphs add pauses. Occasional longer "thinking" pauses at the start of a word.
+- **Realistic typos.** Adjacent-key hits, transposed letters, doubled letters and skipped letters, using the Spanish or US keyboard layout. Mistakes are noticed immediately or a few characters later, then fixed with a burst of backspaces and a slightly slower retype.
+- **Real key events.** Each key is held for a realistic time, and everything goes through the OS, so `isTrusted` is `true` and paste-blocking inputs accept it.
+- **Safe to run while recording.** Countdown before typing, global pause and abort hotkeys, and automatic pause whenever the target app is not in front.
+- **Dry run.** Preview the exact keystroke sequence, duration and effective speed without touching the keyboard.
+- **Profiles.** Keep your favourite settings in a YAML file; command-line flags override it.
+
+## Installation
+
+Requires macOS and [uv](https://docs.astral.sh/uv/). Python is downloaded automatically if needed.
 
 ```sh
+uv tool install git+https://github.com/JuanIsernGhosn/autotyper
+```
+
+Or use the installer, which sets up uv first if it is missing:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/JuanIsernGhosn/autotyper/main/install.sh | sh
+```
+
+To try it once without installing:
+
+```sh
+uvx --from git+https://github.com/JuanIsernGhosn/autotyper autotyper --help
+```
+
+### From source
+
+```sh
+git clone https://github.com/JuanIsernGhosn/autotyper.git
+cd autotyper
 uv sync
+uv run autotyper --help
 ```
 
-## Permisos
+## Permissions
 
-En Ajustes del Sistema > Privacidad y seguridad:
+macOS must allow your terminal app to control the keyboard. On the first real run autotyper asks the system to show its permission dialog, which adds the app to the list for you.
 
-- **Accesibilidad**: la app desde la que ejecutas el comando (Terminal, iTerm,
-  VS Code...). Sin esto no se inyectan teclas.
-- **Monitorización de entrada**: la misma app, para los atajos globales de
-  pausa y aborto.
+In System Settings > Privacy & Security:
 
-## Uso
+- **Accessibility**: enable your terminal app (Terminal, iTerm2, VS Code, ...). Without this no keys are injected.
+- **Input Monitoring**: enable the same app. This is only needed for the global pause and abort hotkeys.
+
+Reopen the terminal window after changing permissions.
+
+## Usage
 
 ```sh
-# previsualizar sin escribir nada
-uv run autotyper texto.txt --dry-run
-uv run autotyper texto.txt --dry-run --verbose
+# preview, nothing is typed
+autotyper text.txt --dry-run
+autotyper text.txt --dry-run --verbose
 
-# escribir de verdad: cuenta atrás de 5 s para hacer clic en el input
-uv run autotyper texto.txt
-uv run autotyper texto.txt --cps 8 --error-rate 0.03 --seed 42
-cat texto.txt | uv run autotyper -
+# type for real: you get a 5 second countdown to click the target input
+autotyper text.txt
+autotyper text.txt --cps 8 --error-rate 0.03 --seed 42
+cat text.txt | autotyper -
 
-# perfil YAML (los flags de CLI tienen prioridad)
-uv run autotyper texto.txt --profile perfil.yaml
+# use a profile; flags on the command line win
+autotyper text.txt --profile profile.yaml
 ```
 
-Ejemplo de `perfil.yaml`:
+### While typing
+
+| Key | Action |
+|---|---|
+| **F8** | pause / resume |
+| **Esc** | abort |
+| **Ctrl+C** in the terminal | abort |
+
+Both hotkeys are global, so you never have to switch back to the terminal. If the target app leaves the foreground, typing pauses by itself and resumes when the app is back. The target is Google Chrome by default; change it with `--app "Safari"` or disable the guard with `--no-focus-guard`.
+
+Keep the terminal on a screen that is not being recorded.
+
+### Options
+
+| Flag | Default | Description |
+|---|---|---|
+| `--cps` | 6 | average characters per second |
+| `--speed-sigma` | 0.35 | spread of the interval between keys |
+| `--error-rate` | 0.02 | probability of a typo per letter |
+| `--uncorrected-rate` | 0 | share of typos left unfixed |
+| `--think-pause-rate` | 0.03 | probability of a long pause at the start of a word |
+| `--layout` | es | keyboard layout for adjacent-key typos: `es` or `us` |
+| `--app` | Google Chrome | app that must be in front for typing to proceed |
+| `--no-focus-guard` | off | never auto-pause on focus loss |
+| `--countdown` | 5 | seconds to wait before typing starts |
+| `--seed` | random | seed for a reproducible run; printed on every run |
+| `--pause-key` / `--abort-key` | f8 / esc | global hotkeys |
+| `--dry-run` | off | print the keystroke plan and exit |
+| `--verbose` | off | with `--dry-run`, list every keystroke with its timing |
+
+### Profiles
 
 ```yaml
+# profile.yaml
 cps: 7
 error_rate: 0.025
 uncorrected_rate: 0.1
@@ -48,31 +132,38 @@ think_pause_rate: 0.04
 layout: es
 ```
 
-## Durante la escritura
+Any option above can be set in the profile using its flag name with underscores instead of dashes.
 
-- **F8** pausa y reanuda. **Esc** aborta. Ambos son globales: no hace falta
-  volver a la terminal.
-- Si Google Chrome deja de estar en primer plano, la escritura se pausa sola y
-  continúa cuando vuelve. Cambia la app con `--app` o desactívalo con
-  `--no-focus-guard`.
-- La terminal debería estar en una pantalla que no se grabe.
+### Exit codes
 
-## Parámetros
+| Code | Meaning |
+|---|---|
+| 0 | finished |
+| 1 | bad input, bad configuration or a typing failure |
+| 2 | the terminal app is not allowed to control the keyboard |
+| 130 | aborted with Esc or Ctrl+C |
 
-| Flag | Defecto | Qué hace |
-|---|---|---|
-| `--cps` | 6 | caracteres por segundo medios |
-| `--speed-sigma` | 0.35 | dispersión del intervalo entre teclas |
-| `--error-rate` | 0.02 | probabilidad de error por letra |
-| `--uncorrected-rate` | 0 | fracción de errores que se dejan sin corregir |
-| `--think-pause-rate` | 0.03 | probabilidad de pausa larga al empezar palabra |
-| `--layout` | es | distribución para errores de tecla vecina (`es`, `us`) |
-| `--countdown` | 5 | segundos antes de empezar |
-| `--seed` | aleatorio | semilla para repetir una ejecución |
-| `--pause-key` / `--abort-key` | f8 / esc | atajos globales |
+## Requirements
 
-## Tests
+- macOS 13 or later
+- [uv](https://docs.astral.sh/uv/) to install, Python 3.12 or later is fetched automatically
+- Accessibility permission for your terminal app
+
+Only use it on forms and sites where you are allowed to automate input.
+
+## Development
 
 ```sh
+uv sync
 uv run pytest
 ```
+
+The planner is pure and seeded, so all typing behaviour is covered by unit tests without touching the keyboard. Design notes live in [docs/superpowers/specs](docs/superpowers/specs).
+
+## Author
+
+Juan Isern · [@JuanIsernGhosn](https://github.com/JuanIsernGhosn)
+
+## License
+
+[MIT](LICENSE)
