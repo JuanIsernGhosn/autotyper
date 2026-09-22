@@ -33,14 +33,20 @@ def run(
     log: Callable[[str], None] = print,
     poll_s: float = 0.1,
 ) -> RunResult:
-    for idx, event in enumerate(events):
-        if not _wait_until_ready(controls, sleep, focus_check, app_name, log, poll_s):
-            return RunResult(pressed=idx, aborted=True)
-        sleep(event.delay_ms / 1000)
-        if controls.aborted:
-            return RunResult(pressed=idx, aborted=True)
-        injector.press(event.key, event.hold_ms / 1000)
-    return RunResult(pressed=len(events), aborted=False)
+    pressed = 0
+    try:
+        for event in events:
+            if not _wait_until_ready(controls, sleep, focus_check, app_name, log, poll_s):
+                return RunResult(pressed=pressed, aborted=True)
+            sleep(event.delay_ms / 1000)
+            if controls.aborted:
+                return RunResult(pressed=pressed, aborted=True)
+            injector.press(event.key, event.hold_ms / 1000)
+            pressed += 1
+    except KeyboardInterrupt:
+        log("interrupted")
+        return RunResult(pressed=pressed, aborted=True)
+    return RunResult(pressed=pressed, aborted=False)
 
 
 def _wait_until_ready(

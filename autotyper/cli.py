@@ -8,6 +8,8 @@ import sys
 import time
 from pathlib import Path
 
+import yaml
+
 from autotyper import __version__
 from autotyper.config import TypingConfig, load_profile, merge
 from autotyper.dryrun import summary, transcript, verbose_lines
@@ -85,6 +87,9 @@ def main(argv: list[str] | None = None) -> int:
         if not text.strip():
             raise ValueError("text is empty")
         cfg = _build_config(args)
+    except yaml.YAMLError as exc:
+        print(f"error: invalid YAML in profile {args.profile}: {exc}", file=sys.stderr)
+        return EXIT_INPUT
     except (OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_INPUT
@@ -118,16 +123,24 @@ def main(argv: list[str] | None = None) -> int:
     hotkeys.start()
     try:
         print(f"seed: {seed}   pause: {cfg.pause_key}   abort: {cfg.abort_key}")
-        for remaining in range(cfg.countdown, 0, -1):
-            print(f"typing in {remaining}... click the target input now", flush=True)
-            time.sleep(1)
-        result = run(
-            events,
-            PynputInjector(),
-            controls,
-            focus_check=frontmost_app_name if cfg.focus_guard else None,
-            app_name=cfg.app_name,
-        )
+        try:
+            for remaining in range(cfg.countdown, 0, -1):
+                print(f"typing in {remaining}... click the target input now", flush=True)
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\naborted during countdown, nothing typed")
+            return EXIT_ABORTED
+        try:
+            result = run(
+                events,
+                PynputInjector(),
+                controls,
+                focus_check=frontmost_app_name if cfg.focus_guard else None,
+                app_name=cfg.app_name,
+            )
+        except Exception as exc:  # noqa: BLE001 - surface any injector/OS failure briefly
+            print(f"error: typing failed ({type(exc).__name__}): {exc}", file=sys.stderr)
+            return EXIT_INPUT
     finally:
         hotkeys.stop()
 
