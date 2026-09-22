@@ -81,7 +81,7 @@ def test_real_run_uses_injected_dependencies(tmp_path, monkeypatch, capsys):
 
     monkeypatch.setattr(cli, "PynputInjector", FakeInjector)
     monkeypatch.setattr(cli, "HotkeyListener", FakeHotkeys)
-    monkeypatch.setattr(cli, "accessibility_trusted", lambda: True)
+    monkeypatch.setattr(cli, "accessibility_trusted", lambda prompt=False: True)
     monkeypatch.setattr(cli, "frontmost_app_name", lambda: "Google Chrome")
     monkeypatch.setattr(cli.time, "sleep", lambda _: None)
     code = cli.main([str(f), "--seed", "1", "--error-rate", "0", "--countdown", "0"])
@@ -93,6 +93,13 @@ def test_real_run_uses_injected_dependencies(tmp_path, monkeypatch, capsys):
 def test_real_run_without_accessibility_returns_2(tmp_path, monkeypatch, capsys):
     f = tmp_path / "t.txt"
     f.write_text("ab")
-    monkeypatch.setattr(cli, "accessibility_trusted", lambda: False)
+    calls = []
+
+    def fake_trusted(prompt=False):
+        calls.append(prompt)
+        return False
+
+    monkeypatch.setattr(cli, "accessibility_trusted", fake_trusted)
     assert cli.main([str(f), "--countdown", "0"]) == 2
     assert "Accessibility" in capsys.readouterr().err
+    assert calls == [True], "the CLI must ask macOS to show its permission prompt"
