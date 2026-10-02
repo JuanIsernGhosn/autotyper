@@ -168,7 +168,7 @@ uv sync
 uv run pytest
 ```
 
-The planner is pure and seeded, so all typing behaviour is covered by unit tests without touching the keyboard. Design notes live in [docs/superpowers/specs](docs/superpowers/specs).
+The planner is pure and seeded, so all typing behaviour is covered by unit tests without touching the keyboard.
 
 ## Author
 
