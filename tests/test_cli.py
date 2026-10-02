@@ -185,3 +185,20 @@ def test_wpm_flag_sets_speed(tmp_path, capsys):
     cli.main([str(f), "--dry-run", "--seed", "1", "--error-rate", "0", "--think-pause-rate", "0", "--wpm", "120"])
     line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("duration:"))
     assert float(line.split()[1]) < 9
+
+
+def test_duration_flag_fits_the_text(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("palabra " * 50)
+    cli.main([str(f), "--dry-run", "--seed", "1", "--duration", "30"])
+    out = capsys.readouterr().out
+    line = next(l for l in out.splitlines() if l.startswith("duration:"))
+    assert abs(float(line.split()[1]) - 30) < 3
+    assert "fitted cps:" in out
+
+
+def test_duration_with_cps_is_rejected(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("hola")
+    assert cli.main([str(f), "--dry-run", "--duration", "10", "--cps", "5"]) == 1
+    assert "--duration" in capsys.readouterr().err

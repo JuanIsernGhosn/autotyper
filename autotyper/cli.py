@@ -13,6 +13,7 @@ import yaml
 from autotyper import __version__
 from autotyper.config import TypingConfig, load_profile, merge
 from autotyper.dryrun import summary, transcript, verbose_lines
+from autotyper.fit import fit_duration
 from autotyper.focus import accessibility_trusted, frontmost_app_name
 from autotyper.hotkeys import HotkeyListener
 from autotyper.injector import PynputInjector
@@ -34,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--profile", help="YAML profile with config values")
     p.add_argument("--cps", type=float, help="characters per second (default 6)")
     p.add_argument("--wpm", type=float, help="words per minute, alternative to --cps (1 word = 5 chars)")
+    p.add_argument("--duration", type=float, help="fit the whole text into this many seconds (overrides speed)")
     p.add_argument("--speed-sigma", type=float, dest="speed_sigma", help="per-key jitter (default 0.35)")
     p.add_argument("--error-rate", type=float, dest="error_rate", help="typo probability per letter (default 0.02)")
     p.add_argument("--uncorrected-rate", type=float, dest="uncorrected_rate", help="share of typos left unfixed (default 0)")
@@ -84,6 +86,9 @@ def _build_config(args: argparse.Namespace) -> TypingConfig:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.duration is not None and (args.cps is not None or args.wpm is not None):
+        print("error: --duration cannot be combined with --cps or --wpm", file=sys.stderr)
+        return EXIT_INPUT
     try:
         text = _read_text(args.text)
         if not text.strip():
@@ -97,7 +102,15 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_INPUT
 
     seed = cfg.seed if cfg.seed is not None else random.randrange(2**32)
-    events = plan(text, cfg, random.Random(seed))
+    if args.duration is not None:
+        try:
+            events, fitted = fit_duration(text, cfg, seed, args.duration)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return EXIT_INPUT
+        print(f"fitted cps: {fitted:.2f}")
+    else:
+        events = plan(text, cfg, random.Random(seed))
 
     if args.dry_run:
         print(transcript(events))
