@@ -86,7 +86,7 @@ def test_all_four_error_kinds_show_up_over_many_seeds():
     for seed in range(40):
         events = plan("hola mundo cruel", cfg(error_rate=1.0), random.Random(seed))
         seen |= {e.note for e in events if e.note.startswith("error:")}
-    assert seen == {"error:neighbor", "error:transpose", "error:double", "error:omit"}
+    assert seen >= {"error:neighbor", "error:transpose", "error:double", "error:omit"}
 
 
 def test_neighbor_errors_come_from_layout_table():
@@ -165,3 +165,26 @@ def test_protect_spans_can_be_disabled():
     text = "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
     events = plan(text, cfg(error_rate=1.0, protect_spans=False), random.Random(1))
     assert any(e.note.startswith("error:") for e in events)
+
+
+def test_accented_letters_mostly_lose_their_accent():
+    events = plan("áéíóú " * 10, cfg(error_rate=1.0), random.Random(1))
+    kinds = [e.note for e in events if e.note.startswith("error:")]
+    assert kinds.count("error:accent") > len(kinds) / 2
+    assert replay(events) == "áéíóú " * 10
+    wrong = [e.key for e in events if e.note == "error:accent"]
+    assert set(wrong) <= set("aeiou")
+
+
+def test_uppercase_letters_sometimes_lose_their_case():
+    seen = set()
+    for seed in range(30):
+        events = plan("Hola Mundo Grande", cfg(error_rate=1.0), random.Random(seed))
+        seen |= {e.note for e in events}
+        assert replay(events) == "Hola Mundo Grande"
+    assert "error:case" in seen
+
+
+def test_enie_is_not_an_accent_error():
+    events = plan("ñ" * 30, cfg(error_rate=1.0), random.Random(2))
+    assert not any(e.note == "error:accent" for e in events)

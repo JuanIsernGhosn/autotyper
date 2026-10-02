@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import random
 import re
+import unicodedata
 
 from autotyper.config import TypingConfig
 from autotyper.events import BACKSPACE, ENTER, TAB, Event
@@ -18,6 +19,8 @@ _PROTECTED = re.compile(
     r"|\d[\d.,:/-]*\d"  # numbers, dates, times
 )
 
+_ACCENTED = frozenset("áéíóúüÁÉÍÓÚÜ")
+
 _PUNCT_SHORT = frozenset(",;:")
 _PUNCT_LONG = frozenset(".!?…")
 
@@ -26,6 +29,10 @@ _CTX_DIGIT = 1.3
 _CTX_SYMBOL = 1.3
 _CTX_AFTER_FIX = 1.2
 _SLOW_KEYS_AFTER_FIX = 3
+
+
+def _strip_accent(ch: str) -> str:
+    return unicodedata.normalize("NFD", ch)[0]
 
 
 def protected_mask(text: str) -> list[bool]:
@@ -123,7 +130,12 @@ class Planner:
         """Emit a mistyped chunk starting at text[i], maybe fix it, return next index."""
         ch = text[i]
         nxt = text[i + 1] if i + 1 < len(text) else ""
-        kind = self.rng.choices(self._ERROR_KINDS, self._ERROR_WEIGHTS)[0]
+        if ch in _ACCENTED and self.rng.random() < 0.7:
+            kind = "accent"
+        elif ch.isupper() and ch.lower() != ch and self.rng.random() < 0.3:
+            kind = "case"
+        else:
+            kind = self.rng.choices(self._ERROR_KINDS, self._ERROR_WEIGHTS)[0]
 
         if kind == "transpose" and not nxt.isalpha():
             kind = "neighbor"
@@ -135,6 +147,10 @@ class Planner:
 
         if kind == "neighbor":
             wrong, correct, advance = [wrong_ch], [ch], 1
+        elif kind == "accent":
+            wrong, correct, advance = [_strip_accent(ch)], [ch], 1
+        elif kind == "case":
+            wrong, correct, advance = [ch.lower()], [ch], 1
         elif kind == "transpose":
             wrong, correct, advance = [nxt, ch], [ch, nxt], 2
         elif kind == "double":
