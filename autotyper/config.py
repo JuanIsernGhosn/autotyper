@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, replace
 from pathlib import Path
@@ -32,6 +33,12 @@ class TypingConfig:
 
 
 _FIELD_NAMES = {f.name for f in fields(TypingConfig)}
+
+
+def default_profile_path() -> Path:
+    """$XDG_CONFIG_HOME/autotyper/config.yaml, or ~/.config/autotyper/config.yaml."""
+    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(base) / "autotyper" / "config.yaml"
 
 
 def load_profile(path: str | Path) -> dict[str, Any]:

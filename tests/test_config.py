@@ -75,3 +75,17 @@ def test_wpm_and_cps_together_is_an_error():
 
 def test_wpm_none_is_ignored():
     assert merge(TypingConfig(), {"wpm": None}).cps == 6.0
+
+
+from autotyper.config import default_profile_path
+
+
+def test_default_profile_path_honours_xdg(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    assert default_profile_path() == tmp_path / "autotyper" / "config.yaml"
+
+
+def test_default_profile_path_falls_back_to_home(monkeypatch, tmp_path):
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert default_profile_path() == tmp_path / ".config" / "autotyper" / "config.yaml"

@@ -1,6 +1,13 @@
 import io
 
+import pytest
+
 from autotyper import cli
+
+
+@pytest.fixture(autouse=True)
+def _isolated_config(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
 
 
 def test_dry_run_prints_transcript_and_summary(tmp_path, capsys):
@@ -307,3 +314,27 @@ def test_missing_input_monitoring_warns_but_runs(tmp_path, monkeypatch, capsys):
     assert cli.main([str(f), "--countdown", "0", "--error-rate", "0"]) == 0
     assert "Input Monitoring" in capsys.readouterr().err
     assert requested == [1]
+
+
+def test_default_profile_is_loaded(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    conf = tmp_path / "autotyper" / "config.yaml"
+    conf.parent.mkdir()
+    conf.write_text("cps: 40\nerror_rate: 0\nthink_pause_rate: 0\n")
+    f = tmp_path / "t.txt"
+    f.write_text("a" * 40)
+    cli.main([str(f), "--dry-run", "--seed", "1"])
+    line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("duration:"))
+    assert float(line.split()[1]) < 3
+
+
+def test_default_profile_can_be_skipped(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    conf = tmp_path / "autotyper" / "config.yaml"
+    conf.parent.mkdir()
+    conf.write_text("cps: 40\nerror_rate: 0\nthink_pause_rate: 0\n")
+    f = tmp_path / "t.txt"
+    f.write_text("a" * 40)
+    cli.main([str(f), "--dry-run", "--seed", "1", "--no-default-profile", "--error-rate", "0"])
+    line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("duration:"))
+    assert float(line.split()[1]) > 4

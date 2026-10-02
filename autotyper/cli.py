@@ -11,7 +11,7 @@ from pathlib import Path
 import yaml
 
 from autotyper import __version__
-from autotyper.config import TypingConfig, load_profile, merge
+from autotyper.config import TypingConfig, default_profile_path, load_profile, merge
 from autotyper.dryrun import summary, transcript, verbose_lines
 from autotyper.events import replay
 from autotyper.fit import fit_duration
@@ -39,6 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("text", help="path to a text file, or - for stdin")
     p.add_argument("--profile", help="YAML profile with config values")
+    p.add_argument("--no-default-profile", action="store_true", dest="no_default_profile", help="ignore ~/.config/autotyper/config.yaml")
     p.add_argument("--cps", type=float, help="characters per second (default 6)")
     p.add_argument("--wpm", type=float, help="words per minute, alternative to --cps (1 word = 5 chars)")
     p.add_argument("--duration", type=float, help="fit the whole text into this many seconds (overrides speed)")
@@ -75,6 +76,9 @@ def _read_text(source: str) -> str:
 
 def _build_config(args: argparse.Namespace) -> TypingConfig:
     cfg = TypingConfig()
+    default = default_profile_path()
+    if not args.no_default_profile and default.is_file():
+        cfg = merge(cfg, load_profile(default))
     if args.profile:
         cfg = merge(cfg, load_profile(args.profile))
     overrides = {
