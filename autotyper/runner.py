@@ -29,8 +29,7 @@ def run(
     controls: Controls,
     *,
     sleep: Callable[[float], None] = time.sleep,
-    focus_check: Callable[[], str | None] | None = None,
-    app_name: str | None = None,
+    guard: Callable[[], str | None] | None = None,
     log: Callable[[str], None] = print,
     poll_s: float = 0.1,
     on_progress: Callable[[int, int, float], None] | None = None,
@@ -42,7 +41,7 @@ def run(
     pressed = 0
     try:
         for event in events:
-            if not _wait_until_ready(controls, sleep, focus_check, app_name, log, poll_s):
+            if not _wait_until_ready(controls, sleep, guard, log, poll_s):
                 return RunResult(pressed=pressed, aborted=True)
             sleep(event.delay_ms / 1000)
             if controls.aborted:
@@ -60,14 +59,17 @@ def run(
 def _wait_until_ready(
     controls: Controls,
     sleep: Callable[[float], None],
-    focus_check: Callable[[], str | None] | None,
-    app_name: str | None,
+    guard: Callable[[], str | None] | None,
     log: Callable[[str], None],
     poll_s: float,
 ) -> bool:
-    """Block while paused or while the target app is not in front. False on abort."""
+    """Block while paused or while the guard returns a reason to wait. False on abort.
+
+    The guard returns None when typing may proceed, otherwise a short
+    human-readable reason (e.g. which app is in front instead).
+    """
     announced_pause = False
-    announced_focus: str | None = None
+    announced_reason: str | None = None
     while True:
         if controls.aborted:
             return False
@@ -80,15 +82,15 @@ def _wait_until_ready(
         if announced_pause:
             log("\nresumed")
             announced_pause = False
-        if focus_check is not None and app_name:
-            front = focus_check()
-            if front is not None and front != app_name:
-                if announced_focus != front:
-                    log(f"\nauto-paused: {front!r} is in front, waiting for {app_name!r}")
-                    announced_focus = front
+        if guard is not None:
+            reason = guard()
+            if reason is not None:
+                if announced_reason != reason:
+                    log(f"\nauto-paused: {reason}")
+                    announced_reason = reason
                 sleep(poll_s)
                 continue
-            if announced_focus is not None:
+            if announced_reason is not None:
                 log("\nresumed")
-                announced_focus = None
+                announced_reason = None
         return True

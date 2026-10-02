@@ -20,6 +20,7 @@ def test_defaults_match_spec():
     assert c.wait_for_key is False
     assert c.protect_spans is True
     assert c.word_delete_rate == 0.3
+    assert c.window is None
 
 
 def test_merge_overrides_only_non_none_values():

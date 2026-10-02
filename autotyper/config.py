@@ -30,6 +30,7 @@ class TypingConfig:
     wait_for_key: bool = False
     protect_spans: bool = True
     word_delete_rate: float = 0.3
+    window: str | None = None
 
 
 _FIELD_NAMES = {f.name for f in fields(TypingConfig)}

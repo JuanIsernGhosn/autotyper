@@ -18,6 +18,7 @@ from autotyper.fit import fit_duration
 from autotyper.focus import (
     accessibility_trusted,
     frontmost_app_name,
+    frontmost_window_title,
     input_monitoring_granted,
     request_input_monitoring,
 )
@@ -51,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--layout", help="keyboard layout for neighbor typos: es or us (default es)")
     p.add_argument("--no-protect-spans", action="store_true", dest="no_protect_spans", help="allow typos inside URLs, emails, numbers and code spans")
     p.add_argument("--app", dest="app_name", help='app that must be in front (default "Google Chrome")')
+    p.add_argument("--window", help="also require the front window title to contain this text (case-insensitive)")
     p.add_argument("--no-focus-guard", action="store_true", help="do not auto-pause when the app loses focus")
     p.add_argument("--countdown", type=int, help="seconds to wait before typing (default 5)")
     p.add_argument("--wait-for-key", action="store_true", dest="wait_for_key", help="instead of a countdown, start when the pause key is pressed")
@@ -92,6 +94,7 @@ def _build_config(args: argparse.Namespace) -> TypingConfig:
         "layout": args.layout,
         "protect_spans": False if args.no_protect_spans else None,
         "app_name": args.app_name,
+        "window": args.window,
         "focus_guard": False if args.no_focus_guard else None,
         "countdown": args.countdown,
         "wait_for_key": True if args.wait_for_key else None,
@@ -100,6 +103,24 @@ def _build_config(args: argparse.Namespace) -> TypingConfig:
         "abort_key": args.abort_key,
     }
     return merge(cfg, overrides)
+
+
+def _build_guard(cfg: TypingConfig):
+    """Return a callable that says why typing must wait, or None to proceed."""
+    if not cfg.focus_guard:
+        return None
+
+    def guard() -> str | None:
+        front = frontmost_app_name()
+        if front is not None and front != cfg.app_name:
+            return f"{front!r} is in front, waiting for {cfg.app_name!r}"
+        if cfg.window:
+            title = frontmost_window_title()
+            if title is not None and cfg.window.lower() not in title.lower():
+                return f"window {title!r} does not contain {cfg.window!r}"
+        return None
+
+    return guard
 
 
 def _progress(done: int, total: int, remaining_s: float) -> None:
@@ -201,8 +222,7 @@ def main(argv: list[str] | None = None) -> int:
                 events,
                 PynputInjector(),
                 controls,
-                focus_check=frontmost_app_name if cfg.focus_guard else None,
-                app_name=cfg.app_name,
+                guard=_build_guard(cfg),
                 on_progress=_progress,
             )
             print()

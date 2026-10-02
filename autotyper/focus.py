@@ -13,6 +13,30 @@ def frontmost_app_name() -> str | None:
     return str(app.localizedName()) if app is not None else None
 
 
+def frontmost_window_title() -> str | None:
+    """Title of the focused window of the frontmost app, or None if unavailable."""
+    try:
+        from AppKit import NSWorkspace
+        from ApplicationServices import (
+            AXUIElementCopyAttributeValue,
+            AXUIElementCreateApplication,
+            kAXFocusedWindowAttribute,
+            kAXTitleAttribute,
+        )
+    except ImportError:
+        return None
+    app = NSWorkspace.sharedWorkspace().frontmostApplication()
+    if app is None:
+        return None
+    err, window = AXUIElementCopyAttributeValue(
+        AXUIElementCreateApplication(app.processIdentifier()), kAXFocusedWindowAttribute, None
+    )
+    if err != 0 or window is None:
+        return None
+    err, title = AXUIElementCopyAttributeValue(window, kAXTitleAttribute, None)
+    return str(title) if err == 0 and title is not None else None
+
+
 def accessibility_trusted(prompt: bool = False) -> bool | None:
     """Whether this process may control the keyboard, or None if the API is unavailable.
 

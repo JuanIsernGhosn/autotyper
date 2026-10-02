@@ -126,6 +126,7 @@ def _fake_env(monkeypatch):
     monkeypatch.setattr(cli, "HotkeyListener", FakeHotkeys)
     monkeypatch.setattr(cli, "accessibility_trusted", lambda prompt=False: True)
     monkeypatch.setattr(cli, "frontmost_app_name", lambda: "Google Chrome")
+    monkeypatch.setattr(cli, "frontmost_window_title", lambda: "Formulario - Google Chrome")
     monkeypatch.setattr(cli, "input_monitoring_granted", lambda: True)
 
 
@@ -338,3 +339,20 @@ def test_default_profile_can_be_skipped(tmp_path, monkeypatch, capsys):
     cli.main([str(f), "--dry-run", "--seed", "1", "--no-default-profile", "--error-rate", "0"])
     line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("duration:"))
     assert float(line.split()[1]) > 4
+
+
+def test_window_guard_waits_for_matching_title(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("a")
+    _fake_env(monkeypatch)
+    titles = ["Inbox - Gmail", "Formulario - Google Chrome"]
+    monkeypatch.setattr(cli, "frontmost_window_title", lambda: titles.pop(0) if len(titles) > 1 else titles[0])
+
+    class FakeInjector:
+        def press(self, key, hold_s):
+            pass
+
+    monkeypatch.setattr(cli, "PynputInjector", FakeInjector)
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    assert cli.main([str(f), "--countdown", "0", "--error-rate", "0", "--window", "formulario"]) == 0
+    assert "Inbox" in capsys.readouterr().out

@@ -42,26 +42,25 @@ def test_pause_holds_without_losing_events():
     assert polls["n"] >= 3
 
 
-def test_focus_guard_pauses_until_app_returns():
+def test_guard_pauses_until_it_returns_none():
     inj = RecordingInjector()
-    front = ["Finder", "Finder", "Google Chrome"]
+    reasons = ["Finder is in front", "Finder is in front", None]
     logs = []
     result = run(
         EVENTS[:1],
         inj,
         Controls(),
         sleep=lambda _: None,
-        focus_check=lambda: front.pop(0) if len(front) > 1 else front[0],
-        app_name="Google Chrome",
+        guard=lambda: reasons.pop(0) if len(reasons) > 1 else reasons[0],
         log=logs.append,
     )
     assert result.pressed == 1
     assert any("Finder" in line for line in logs)
+    assert any("resumed" in line for line in logs)
 
 
-def test_focus_guard_ignored_when_check_returns_none():
-    inj = RecordingInjector()
-    result = run(EVENTS, inj, Controls(), sleep=lambda _: None, focus_check=lambda: None, app_name="Google Chrome")
+def test_no_guard_means_no_waiting():
+    result = run(EVENTS, RecordingInjector(), Controls(), sleep=lambda _: None, guard=None)
     assert result.pressed == 3
 
 
