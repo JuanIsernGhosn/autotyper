@@ -28,6 +28,7 @@ class TypingConfig:
     abort_key: str = "esc"
     wait_for_key: bool = False
     protect_spans: bool = True
+    word_delete_rate: float = 0.3
 
 
 _FIELD_NAMES = {f.name for f in fields(TypingConfig)}
@@ -70,7 +71,7 @@ def _validate(cfg: TypingConfig) -> None:
         raise ValueError("cps must be > 0")
     if cfg.speed_sigma < 0:
         raise ValueError("speed_sigma must be >= 0")
-    for name in ("error_rate", "uncorrected_rate", "think_pause_rate"):
+    for name in ("error_rate", "uncorrected_rate", "think_pause_rate", "word_delete_rate"):
         value = getattr(cfg, name)
         if not 0 <= value <= 1:
             raise ValueError(f"{name} must be between 0 and 1")

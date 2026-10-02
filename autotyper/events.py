@@ -8,7 +8,8 @@ from dataclasses import dataclass
 BACKSPACE = "backspace"
 ENTER = "enter"
 TAB = "tab"
-SPECIAL_KEYS = frozenset({BACKSPACE, ENTER, TAB})
+WORD_BACKSPACE = "word_backspace"  # Option+Backspace on macOS
+SPECIAL_KEYS = frozenset({BACKSPACE, ENTER, TAB, WORD_BACKSPACE})
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,9 @@ def replay(events: Iterable[Event]) -> str:
     for e in events:
         if e.key == BACKSPACE:
             if buf:
+                buf.pop()
+        elif e.key == WORD_BACKSPACE:
+            while buf and not buf[-1].isspace():
                 buf.pop()
         elif e.key == ENTER:
             buf.append("\n")

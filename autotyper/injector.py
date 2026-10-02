@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol, TextIO
 
-from autotyper.events import BACKSPACE, ENTER, TAB
+from autotyper.events import BACKSPACE, ENTER, TAB, WORD_BACKSPACE
 
 
 class Injector(Protocol):
@@ -41,12 +41,20 @@ class PynputInjector:
             from pynput.keyboard import Controller, Key
 
             keyboard = keyboard or Controller()
-            special = special or {BACKSPACE: Key.backspace, ENTER: Key.enter, TAB: Key.tab}
+            special = special or {BACKSPACE: Key.backspace, ENTER: Key.enter, TAB: Key.tab, "alt": Key.alt}
         self._kb = keyboard
         self._special = dict(special)
         self._sleep = sleep
 
     def press(self, key: str, hold_s: float) -> None:
+        if key == WORD_BACKSPACE:
+            alt, bs = self._special["alt"], self._special[BACKSPACE]
+            self._kb.press(alt)
+            self._kb.press(bs)
+            self._sleep(hold_s)
+            self._kb.release(bs)
+            self._kb.release(alt)
+            return
         k = self._special.get(key, key)
         self._kb.press(k)
         self._sleep(hold_s)
@@ -70,6 +78,12 @@ class TerminalInjector:
             if self.buffer and self.buffer[-1] not in "\n\t":
                 self._write("\b \b")
             self.buffer = self.buffer[:-1]
+        elif key == WORD_BACKSPACE:
+            kept = len(self.buffer.rstrip()) and max(
+                (i + 1 for i, c in enumerate(self.buffer) if c.isspace()), default=0
+            )
+            self._write("\b \b" * (len(self.buffer) - kept))
+            self.buffer = self.buffer[:kept]
         elif key == ENTER:
             self._write("\n")
             self.buffer += "\n"

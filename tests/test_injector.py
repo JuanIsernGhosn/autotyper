@@ -55,3 +55,24 @@ def test_terminal_injector_writes_keys_and_erases_on_backspace():
         inj.press(k, 0)
     assert out.getvalue() == "ab\b \b\n\tc"
     assert inj.buffer == "a\n\tc"
+
+
+def test_pynput_injector_sends_option_backspace_chord():
+    kb = FakeKeyboard()
+    inj = PynputInjector(keyboard=kb, special={"backspace": "BS", "alt": "ALT"}, sleep=lambda _: None)
+    inj.press("word_backspace", 0.05)
+    assert kb.log == [("down", "ALT"), ("down", "BS"), ("up", "BS"), ("up", "ALT")]
+
+
+def test_terminal_injector_erases_word():
+    import io
+
+    from autotyper.injector import TerminalInjector
+
+    out = io.StringIO()
+    inj = TerminalInjector(out)
+    for k in "ab cd":
+        inj.press(k, 0)
+    inj.press("word_backspace", 0)
+    assert out.getvalue() == "ab cd" + "\b \b" * 2
+    assert inj.buffer == "ab "

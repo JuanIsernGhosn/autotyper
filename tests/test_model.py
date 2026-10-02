@@ -188,3 +188,21 @@ def test_uppercase_letters_sometimes_lose_their_case():
 def test_enie_is_not_an_accent_error():
     events = plan("ñ" * 30, cfg(error_rate=1.0), random.Random(2))
     assert not any(e.note == "error:accent" for e in events)
+
+
+from autotyper.events import WORD_BACKSPACE
+
+
+def test_word_delete_appears_and_text_is_still_reproduced():
+    text = "palabras largas escritas deprisa " * 5
+    seen = False
+    for seed in range(40):
+        events = plan(text, cfg(error_rate=0.5, word_delete_rate=1.0), random.Random(seed))
+        assert replay(events) == text, seed
+        seen |= any(e.key == WORD_BACKSPACE for e in events)
+    assert seen
+
+
+def test_word_delete_rate_zero_never_uses_it():
+    events = plan("palabras largas " * 10, cfg(error_rate=1.0, word_delete_rate=0.0), random.Random(1))
+    assert not any(e.key == WORD_BACKSPACE for e in events)

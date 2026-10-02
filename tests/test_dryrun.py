@@ -37,3 +37,7 @@ def test_verbose_lines_one_per_event_with_note():
     assert len(lines) == 2
     assert "'a'" in lines[0] and "120" in lines[0] and "56" in lines[0]
     assert "backspace" in lines[1] and "fix" in lines[1]
+
+
+def test_transcript_renders_word_backspace():
+    assert transcript([Event("a", 0, 50), Event("word_backspace", 0, 50)]) == "a⌫⌫"

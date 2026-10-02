@@ -8,7 +8,7 @@ import re
 import unicodedata
 
 from autotyper.config import TypingConfig
-from autotyper.events import BACKSPACE, ENTER, TAB, Event
+from autotyper.events import BACKSPACE, ENTER, TAB, WORD_BACKSPACE, Event
 from autotyper.layouts import neighbor
 
 _PROTECTED = re.compile(
@@ -61,9 +61,11 @@ class Planner:
         self._mask = protected_mask(text) if self.cfg.protect_spans else [False] * len(text)
         i = 0
         at_word_start = True
+        self._word_start = 0
         while i < len(text):
             ch = text[i]
             if at_word_start and not ch.isspace():
+                self._word_start = i
                 if self.rng.random() < self.cfg.think_pause_rate:
                     self.pending_pause_ms += self.rng.uniform(800, 2500)
             if ch.isalpha() and not self._mask[i] and self.rng.random() < self.cfg.error_rate:
@@ -176,6 +178,17 @@ class Planner:
             self._emit_char(x, note="error:omit" if kind == "omit" and n == 0 else "")
 
         if self.rng.random() < self.cfg.uncorrected_rate:
+            return j
+
+        word_so_far = text[self._word_start : j]
+        if len(extra) >= 2 and word_so_far.isalpha() and self.rng.random() < self.cfg.word_delete_rate:
+            # Noticed late: wipe the whole word with Option+Backspace and retype it.
+            self.pending_pause_ms = self.rng.uniform(250, 600)
+            delay = self.rng.uniform(150, 300) + self._take_pending()
+            self.events.append(Event(WORD_BACKSPACE, delay, self._hold_ms(), "fix"))
+            self.slow_after_fix = _SLOW_KEYS_AFTER_FIX
+            for c in word_so_far:
+                self._emit_char(c, note="fix")
             return j
 
         self.pending_pause_ms = self.rng.uniform(200, 500)

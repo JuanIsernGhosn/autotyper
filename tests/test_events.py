@@ -22,3 +22,10 @@ def test_replay_enter_and_tab_map_to_whitespace():
 
 def test_event_default_note_is_empty():
     assert Event("a", 1.0, 2.0).note == ""
+
+
+def test_replay_word_backspace_deletes_back_to_previous_space():
+    from autotyper.events import WORD_BACKSPACE
+
+    events = [Event(c, 0, 50) for c in "hola mun"] + [Event(WORD_BACKSPACE, 0, 50)] + [Event("m", 0, 50)]
+    assert replay(events) == "hola m"

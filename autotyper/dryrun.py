@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from autotyper.events import BACKSPACE, ENTER, TAB, Event, replay
+from autotyper.events import BACKSPACE, ENTER, TAB, WORD_BACKSPACE, Event, replay
 
-_GLYPHS = {BACKSPACE: "⌫", ENTER: "⏎\n", TAB: "⇥"}
+_GLYPHS = {BACKSPACE: "⌫", WORD_BACKSPACE: "⌫⌫", ENTER: "⏎\n", TAB: "⇥"}
 
 
 def transcript(events: Sequence[Event]) -> str:
