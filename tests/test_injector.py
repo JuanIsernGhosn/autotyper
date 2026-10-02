@@ -76,3 +76,20 @@ def test_terminal_injector_erases_word():
     inj.press("word_backspace", 0)
     assert out.getvalue() == "ab cd" + "\b \b" * 2
     assert inj.buffer == "ab "
+
+
+def test_input_monitoring_granted_maps_iokit_codes(monkeypatch):
+    from autotyper import focus
+
+    class FakeIOKit:
+        def __init__(self, code):
+            self.IOHIDCheckAccess = lambda kind: code
+
+    monkeypatch.setattr(focus, "_iokit", lambda: FakeIOKit(0))
+    assert focus.input_monitoring_granted() is True
+    monkeypatch.setattr(focus, "_iokit", lambda: FakeIOKit(1))
+    assert focus.input_monitoring_granted() is False
+    monkeypatch.setattr(focus, "_iokit", lambda: FakeIOKit(2))
+    assert focus.input_monitoring_granted() is None
+    monkeypatch.setattr(focus, "_iokit", lambda: None)
+    assert focus.input_monitoring_granted() is None

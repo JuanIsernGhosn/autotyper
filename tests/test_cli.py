@@ -119,6 +119,7 @@ def _fake_env(monkeypatch):
     monkeypatch.setattr(cli, "HotkeyListener", FakeHotkeys)
     monkeypatch.setattr(cli, "accessibility_trusted", lambda prompt=False: True)
     monkeypatch.setattr(cli, "frontmost_app_name", lambda: "Google Chrome")
+    monkeypatch.setattr(cli, "input_monitoring_granted", lambda: True)
 
 
 def test_ctrl_c_during_countdown_exits_130_without_traceback(tmp_path, monkeypatch, capsys):
@@ -287,3 +288,22 @@ def test_live_without_dry_run_is_rejected(tmp_path, capsys):
     f.write_text("hi")
     assert cli.main([str(f), "--live"]) == 1
     assert "--live requires --dry-run" in capsys.readouterr().err
+
+
+def test_missing_input_monitoring_warns_but_runs(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("a")
+    _fake_env(monkeypatch)
+    monkeypatch.setattr(cli, "input_monitoring_granted", lambda: False)
+    requested = []
+    monkeypatch.setattr(cli, "request_input_monitoring", lambda: requested.append(1))
+
+    class FakeInjector:
+        def press(self, key, hold_s):
+            pass
+
+    monkeypatch.setattr(cli, "PynputInjector", FakeInjector)
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    assert cli.main([str(f), "--countdown", "0", "--error-rate", "0"]) == 0
+    assert "Input Monitoring" in capsys.readouterr().err
+    assert requested == [1]

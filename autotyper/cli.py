@@ -15,7 +15,12 @@ from autotyper.config import TypingConfig, load_profile, merge
 from autotyper.dryrun import summary, transcript, verbose_lines
 from autotyper.events import replay
 from autotyper.fit import fit_duration
-from autotyper.focus import accessibility_trusted, frontmost_app_name
+from autotyper.focus import (
+    accessibility_trusted,
+    frontmost_app_name,
+    input_monitoring_granted,
+    request_input_monitoring,
+)
 from autotyper.hotkeys import HotkeyListener
 from autotyper.injector import PynputInjector, TerminalInjector
 from autotyper.model import plan
@@ -157,6 +162,14 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return EXIT_PERMISSION
+
+    if input_monitoring_granted() is False:
+        request_input_monitoring()
+        print(
+            "warning: Input Monitoring is not granted, so the pause/abort hotkeys will not work.\n"
+            "Enable it in System Settings > Privacy & Security > Input Monitoring for your terminal app.",
+            file=sys.stderr,
+        )
 
     controls = Controls()
     hotkeys = HotkeyListener(controls, cfg.pause_key, cfg.abort_key)
