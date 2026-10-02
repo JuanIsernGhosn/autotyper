@@ -20,7 +20,7 @@ def test_key_name_handles_named_and_char_keys():
 
 
 def test_pause_key_toggles_and_abort_key_sets():
-    controls = Controls()
+    controls = Controls(started=True)
     logs = []
     hk = HotkeyListener(controls, pause_key="f8", abort_key="esc", log=logs.append)
     hk.on_press(named("f8"))
