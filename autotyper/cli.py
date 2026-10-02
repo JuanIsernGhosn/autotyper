@@ -44,6 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--app", dest="app_name", help='app that must be in front (default "Google Chrome")')
     p.add_argument("--no-focus-guard", action="store_true", help="do not auto-pause when the app loses focus")
     p.add_argument("--countdown", type=int, help="seconds to wait before typing (default 5)")
+    p.add_argument("--wait-for-key", action="store_true", dest="wait_for_key", help="instead of a countdown, start when the pause key is pressed")
     p.add_argument("--seed", type=int, help="random seed for reproducible runs")
     p.add_argument("--pause-key", dest="pause_key", help="global pause/resume key (default f8)")
     p.add_argument("--abort-key", dest="abort_key", help="global abort key (default esc)")
@@ -77,6 +78,7 @@ def _build_config(args: argparse.Namespace) -> TypingConfig:
         "app_name": args.app_name,
         "focus_guard": False if args.no_focus_guard else None,
         "countdown": args.countdown,
+        "wait_for_key": True if args.wait_for_key else None,
         "seed": args.seed,
         "pause_key": args.pause_key,
         "abort_key": args.abort_key,
@@ -143,11 +145,20 @@ def main(argv: list[str] | None = None) -> int:
     try:
         print(f"seed: {seed}   pause: {cfg.pause_key}   abort: {cfg.abort_key}")
         try:
-            for remaining in range(cfg.countdown, 0, -1):
-                print(f"typing in {remaining}... click the target input now", flush=True)
-                time.sleep(1)
+            if cfg.wait_for_key:
+                print(f"press {cfg.pause_key} in the target input to start ({cfg.abort_key} cancels)", flush=True)
+                while not controls.started and not controls.aborted:
+                    time.sleep(0.05)
+                if controls.aborted:
+                    print("cancelled before typing")
+                    return EXIT_ABORTED
+            else:
+                for remaining in range(cfg.countdown, 0, -1):
+                    print(f"typing in {remaining}... click the target input now", flush=True)
+                    time.sleep(1)
+                controls.started = True
         except KeyboardInterrupt:
-            print("\naborted during countdown, nothing typed")
+            print("\naborted before typing, nothing typed")
             return EXIT_ABORTED
         try:
             result = run(

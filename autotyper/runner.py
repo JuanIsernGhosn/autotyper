@@ -12,6 +12,7 @@ from autotyper.injector import Injector
 
 @dataclass
 class Controls:
+    started: bool = False
     paused: bool = False
     aborted: bool = False
 

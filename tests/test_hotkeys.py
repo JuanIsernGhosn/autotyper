@@ -37,3 +37,12 @@ def test_other_keys_are_ignored():
     hk = HotkeyListener(controls, log=lambda _: None)
     hk.on_press(charkey("x"))
     assert controls == Controls()
+
+
+def test_first_pause_key_press_starts_when_not_started():
+    controls = Controls()
+    hk = HotkeyListener(controls, log=lambda _: None)
+    hk.on_press(named("f8"))
+    assert controls.started is True and controls.paused is False
+    hk.on_press(named("f8"))
+    assert controls.paused is True

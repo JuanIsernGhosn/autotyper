@@ -35,6 +35,10 @@ class HotkeyListener:
     def on_press(self, key: Any) -> None:
         name = key_name(key)
         if name == self.pause_key:
+            if not self.controls.started:
+                self.controls.started = True
+                self.log("start requested")
+                return
             self.controls.paused = not self.controls.paused
             self.log("pause requested" if self.controls.paused else "resume requested")
         elif name == self.abort_key:

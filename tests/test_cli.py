@@ -217,3 +217,31 @@ def test_progress_line_is_printed_during_real_run(tmp_path, monkeypatch, capsys)
     monkeypatch.setattr(cli.time, "sleep", lambda _: None)
     cli.main([str(f), "--countdown", "0", "--error-rate", "0", "--seed", "1"])
     assert "3/3" in capsys.readouterr().out
+
+
+def test_wait_for_key_starts_when_controls_started(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("ab")
+    _fake_env(monkeypatch)
+    pressed = []
+
+    class FakeInjector:
+        def press(self, key, hold_s):
+            pressed.append(key)
+
+    class StartingHotkeys:
+        def __init__(self, controls, *a, **k):
+            self.controls = controls
+
+        def start(self):
+            self.controls.started = True
+
+        def stop(self):
+            pass
+
+    monkeypatch.setattr(cli, "PynputInjector", FakeInjector)
+    monkeypatch.setattr(cli, "HotkeyListener", StartingHotkeys)
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    assert cli.main([str(f), "--wait-for-key", "--error-rate", "0", "--seed", "1"]) == 0
+    assert pressed == ["a", "b"]
+    assert "press f8" in capsys.readouterr().out.lower()

@@ -26,6 +26,7 @@ class TypingConfig:
     seed: int | None = None
     pause_key: str = "f8"
     abort_key: str = "esc"
+    wait_for_key: bool = False
 
 
 _FIELD_NAMES = {f.name for f in fields(TypingConfig)}

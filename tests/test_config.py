@@ -17,6 +17,7 @@ def test_defaults_match_spec():
     assert c.seed is None
     assert c.pause_key == "f8"
     assert c.abort_key == "esc"
+    assert c.wait_for_key is False
 
 
 def test_merge_overrides_only_non_none_values():
