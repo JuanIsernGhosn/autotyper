@@ -42,7 +42,18 @@ def load_profile(path: str | Path) -> dict[str, Any]:
 
 
 def merge(base: TypingConfig, overrides: Mapping[str, Any]) -> TypingConfig:
-    """Return base with every non-None override applied, then validated."""
+    """Return base with every non-None override applied, then validated.
+
+    A ``wpm`` key is accepted as an alternative to ``cps`` (1 word = 5 chars).
+    """
+    overrides = dict(overrides)
+    wpm = overrides.pop("wpm", None)
+    if wpm is not None:
+        if overrides.get("cps") is not None:
+            raise ValueError("use either wpm or cps, not both")
+        if wpm <= 0:
+            raise ValueError("wpm must be > 0")
+        overrides["cps"] = wpm * 5 / 60
     unknown = set(overrides) - _FIELD_NAMES
     if unknown:
         raise ValueError(f"unknown config keys: {', '.join(sorted(unknown))}")

@@ -33,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("text", help="path to a text file, or - for stdin")
     p.add_argument("--profile", help="YAML profile with config values")
     p.add_argument("--cps", type=float, help="characters per second (default 6)")
+    p.add_argument("--wpm", type=float, help="words per minute, alternative to --cps (1 word = 5 chars)")
     p.add_argument("--speed-sigma", type=float, dest="speed_sigma", help="per-key jitter (default 0.35)")
     p.add_argument("--error-rate", type=float, dest="error_rate", help="typo probability per letter (default 0.02)")
     p.add_argument("--uncorrected-rate", type=float, dest="uncorrected_rate", help="share of typos left unfixed (default 0)")
@@ -65,6 +66,7 @@ def _build_config(args: argparse.Namespace) -> TypingConfig:
         cfg = merge(cfg, load_profile(args.profile))
     overrides = {
         "cps": args.cps,
+        "wpm": args.wpm,
         "speed_sigma": args.speed_sigma,
         "error_rate": args.error_rate,
         "uncorrected_rate": args.uncorrected_rate,

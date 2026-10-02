@@ -58,3 +58,17 @@ def test_profile_then_cli_precedence(tmp_path):
     c = merge(merge(TypingConfig(), load_profile(p)), {"cps": 8.0, "layout": None})
     assert c.cps == 8.0
     assert c.layout == "us"
+
+
+def test_wpm_is_converted_to_cps():
+    c = merge(TypingConfig(), {"wpm": 60})
+    assert c.cps == 5.0
+
+
+def test_wpm_and_cps_together_is_an_error():
+    with pytest.raises(ValueError, match="wpm"):
+        merge(TypingConfig(), {"wpm": 60, "cps": 4})
+
+
+def test_wpm_none_is_ignored():
+    assert merge(TypingConfig(), {"wpm": None}).cps == 6.0

@@ -177,3 +177,11 @@ def test_invalid_yaml_profile_exits_1(tmp_path, capsys):
     f.write_text("ab")
     assert cli.main([str(f), "--dry-run", "--profile", str(prof)]) == 1
     assert "profile" in capsys.readouterr().err
+
+
+def test_wpm_flag_sets_speed(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("a" * 60)
+    cli.main([str(f), "--dry-run", "--seed", "1", "--error-rate", "0", "--think-pause-rate", "0", "--wpm", "120"])
+    line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith("duration:"))
+    assert float(line.split()[1]) < 9
