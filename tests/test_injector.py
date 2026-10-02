@@ -42,3 +42,16 @@ def test_accessibility_trusted_passes_prompt_option(monkeypatch):
     monkeypatch.setitem(sys.modules, "ApplicationServices", fake)
     assert focus.accessibility_trusted(prompt=True) is True
     assert seen["opts"] == {"AXTrustedCheckOptionPrompt": True}
+
+
+def test_terminal_injector_writes_keys_and_erases_on_backspace():
+    import io
+
+    from autotyper.injector import TerminalInjector
+
+    out = io.StringIO()
+    inj = TerminalInjector(out)
+    for k in ("a", "b", "backspace", "enter", "tab", "c"):
+        inj.press(k, 0)
+    assert out.getvalue() == "ab\b \b\n\tc"
+    assert inj.buffer == "a\n\tc"

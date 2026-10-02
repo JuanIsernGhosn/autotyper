@@ -270,3 +270,20 @@ def test_abort_prints_resume_hint(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli.time, "sleep", lambda _: None)
     cli.main([str(f), "--countdown", "0", "--error-rate", "0", "--seed", "1", "--start-at", "1"])
     assert "resume with --start-at 3" in capsys.readouterr().out
+
+
+def test_dry_run_live_types_to_terminal(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("hi")
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    assert cli.main([str(f), "--dry-run", "--live", "--seed", "1", "--error-rate", "0"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("hi")
+    assert "duration:" in out
+
+
+def test_live_without_dry_run_is_rejected(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("hi")
+    assert cli.main([str(f), "--live"]) == 1
+    assert "--live requires --dry-run" in capsys.readouterr().err

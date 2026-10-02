@@ -17,7 +17,7 @@ from autotyper.events import replay
 from autotyper.fit import fit_duration
 from autotyper.focus import accessibility_trusted, frontmost_app_name
 from autotyper.hotkeys import HotkeyListener
-from autotyper.injector import PynputInjector
+from autotyper.injector import PynputInjector, TerminalInjector
 from autotyper.model import plan
 from autotyper.runner import Controls, run
 
@@ -52,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--abort-key", dest="abort_key", help="global abort key (default esc)")
     p.add_argument("--dry-run", action="store_true", help="print what would be typed, inject nothing")
     p.add_argument("--verbose", action="store_true", help="with --dry-run, list every keystroke")
+    p.add_argument("--live", action="store_true", help="with --dry-run, replay the rhythm in the terminal in real time")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return p
 
@@ -94,6 +95,9 @@ def _progress(done: int, total: int, remaining_s: float) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.live and not args.dry_run:
+        print("error: --live requires --dry-run", file=sys.stderr)
+        return EXIT_INPUT
     if args.duration is not None and (args.cps is not None or args.wpm is not None):
         print("error: --duration cannot be combined with --cps or --wpm", file=sys.stderr)
         return EXIT_INPUT
@@ -124,7 +128,13 @@ def main(argv: list[str] | None = None) -> int:
         events = plan(text, cfg, random.Random(seed))
 
     if args.dry_run:
-        print(transcript(events))
+        if args.live:
+            result = run(events, TerminalInjector(), Controls(), sleep=time.sleep)
+            print()
+            if result.aborted:
+                return EXIT_ABORTED
+        else:
+            print(transcript(events))
         print()
         if args.verbose:
             print("\n".join(verbose_lines(events)))
