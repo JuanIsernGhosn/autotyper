@@ -27,6 +27,7 @@ class TypingConfig:
     pause_key: str = "f8"
     abort_key: str = "esc"
     wait_for_key: bool = False
+    protect_spans: bool = True
 
 
 _FIELD_NAMES = {f.name for f in fields(TypingConfig)}

@@ -42,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--uncorrected-rate", type=float, dest="uncorrected_rate", help="share of typos left unfixed (default 0)")
     p.add_argument("--think-pause-rate", type=float, dest="think_pause_rate", help="long pause probability per word (default 0.03)")
     p.add_argument("--layout", help="keyboard layout for neighbor typos: es or us (default es)")
+    p.add_argument("--no-protect-spans", action="store_true", dest="no_protect_spans", help="allow typos inside URLs, emails, numbers and code spans")
     p.add_argument("--app", dest="app_name", help='app that must be in front (default "Google Chrome")')
     p.add_argument("--no-focus-guard", action="store_true", help="do not auto-pause when the app loses focus")
     p.add_argument("--countdown", type=int, help="seconds to wait before typing (default 5)")
@@ -78,6 +79,7 @@ def _build_config(args: argparse.Namespace) -> TypingConfig:
         "uncorrected_rate": args.uncorrected_rate,
         "think_pause_rate": args.think_pause_rate,
         "layout": args.layout,
+        "protect_spans": False if args.no_protect_spans else None,
         "app_name": args.app_name,
         "focus_guard": False if args.no_focus_guard else None,
         "countdown": args.countdown,

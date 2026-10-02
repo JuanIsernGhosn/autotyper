@@ -4,10 +4,19 @@ from __future__ import annotations
 
 import math
 import random
+import re
 
 from autotyper.config import TypingConfig
 from autotyper.events import BACKSPACE, ENTER, TAB, Event
 from autotyper.layouts import neighbor
+
+_PROTECTED = re.compile(
+    r"https?://\S+"  # URLs
+    r"|www\.\S+"
+    r"|[\w.+-]+@[\w-]+\.[\w.-]+"  # emails
+    r"|`[^`\n]*`"  # inline code
+    r"|\d[\d.,:/-]*\d"  # numbers, dates, times
+)
 
 _PUNCT_SHORT = frozenset(",;:")
 _PUNCT_LONG = frozenset(".!?…")
@@ -17,6 +26,15 @@ _CTX_DIGIT = 1.3
 _CTX_SYMBOL = 1.3
 _CTX_AFTER_FIX = 1.2
 _SLOW_KEYS_AFTER_FIX = 3
+
+
+def protected_mask(text: str) -> list[bool]:
+    """True at every index where a typo must not be introduced."""
+    mask = [False] * len(text)
+    for m in _PROTECTED.finditer(text):
+        for i in range(m.start(), m.end()):
+            mask[i] = True
+    return mask
 
 
 class Planner:
@@ -33,6 +51,7 @@ class Planner:
 
     def plan(self, text: str) -> list[Event]:
         text = text.replace("\r", "")
+        self._mask = protected_mask(text) if self.cfg.protect_spans else [False] * len(text)
         i = 0
         at_word_start = True
         while i < len(text):
@@ -40,7 +59,7 @@ class Planner:
             if at_word_start and not ch.isspace():
                 if self.rng.random() < self.cfg.think_pause_rate:
                     self.pending_pause_ms += self.rng.uniform(800, 2500)
-            if ch.isalpha() and self.rng.random() < self.cfg.error_rate:
+            if ch.isalpha() and not self._mask[i] and self.rng.random() < self.cfg.error_rate:
                 i = self._typo(text, i)
                 at_word_start = False
             else:
@@ -128,7 +147,7 @@ class Planner:
             k = 1
         j = i + advance
         extra: list[str] = []
-        while len(extra) < k and j < len(text) and not text[j].isspace():
+        while len(extra) < k and j < len(text) and not text[j].isspace() and not self._mask[j]:
             extra.append(text[j])
             j += 1
         if kind == "omit" and not extra:

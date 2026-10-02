@@ -132,3 +132,36 @@ def test_accented_letters_never_use_neighbor_kind():
     events = plan("ááááá ééééé", cfg(error_rate=1.0), random.Random(1))
     assert not any(e.note == "error:neighbor" for e in events)
     assert replay(events) == "ááááá ééééé"
+
+
+from autotyper.model import protected_mask
+
+
+def test_protected_mask_covers_urls_emails_numbers_and_code():
+    text = "ve a https://ejemplo.com/x?a=1 o escribe a juan@mail.com, usa `git push` y el 2024-09-29"
+    mask = protected_mask(text)
+    assert all(mask[i] for i in range(text.index("https"), text.index("?a=1") + 4))
+    assert all(mask[i] for i in range(text.index("juan@"), text.index(".com,") + 4))
+    assert all(mask[i] for i in range(text.index("`git"), text.index("push`") + 5))
+    assert all(mask[i] for i in range(text.index("2024"), len(text)))
+    assert not mask[text.index("ve")]
+    assert not mask[text.index("usa")]
+
+
+def test_no_typos_inside_a_protected_url():
+    text = "https://ejemplo.com/pagina/larga"
+    for seed in range(10):
+        events = plan(text, cfg(error_rate=1.0), random.Random(seed))
+        assert not any(e.note.startswith("error:") for e in events), seed
+
+
+def test_typos_still_happen_outside_protected_spans():
+    events = plan("mira https://ejemplo.com/pagina ahora", cfg(error_rate=1.0), random.Random(1))
+    assert any(e.note.startswith("error:") for e in events)
+    assert replay(events) == "mira https://ejemplo.com/pagina ahora"
+
+
+def test_protect_spans_can_be_disabled():
+    text = "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+    events = plan(text, cfg(error_rate=1.0, protect_spans=False), random.Random(1))
+    assert any(e.note.startswith("error:") for e in events)
