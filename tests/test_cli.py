@@ -245,3 +245,28 @@ def test_wait_for_key_starts_when_controls_started(tmp_path, monkeypatch, capsys
     assert cli.main([str(f), "--wait-for-key", "--error-rate", "0", "--seed", "1"]) == 0
     assert pressed == ["a", "b"]
     assert "press f8" in capsys.readouterr().out.lower()
+
+
+def test_start_at_skips_characters(tmp_path, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("abcdef")
+    cli.main([str(f), "--dry-run", "--seed", "1", "--error-rate", "0", "--start-at", "4"])
+    assert capsys.readouterr().out.startswith("ef")
+
+
+def test_abort_prints_resume_hint(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("abcdef")
+    _fake_env(monkeypatch)
+    pressed = []
+
+    class FakeInjector:
+        def press(self, key, hold_s):
+            pressed.append(key)
+            if len(pressed) == 3:
+                raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "PynputInjector", FakeInjector)
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    cli.main([str(f), "--countdown", "0", "--error-rate", "0", "--seed", "1", "--start-at", "1"])
+    assert "resume with --start-at 3" in capsys.readouterr().out

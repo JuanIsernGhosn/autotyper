@@ -13,6 +13,7 @@ import yaml
 from autotyper import __version__
 from autotyper.config import TypingConfig, load_profile, merge
 from autotyper.dryrun import summary, transcript, verbose_lines
+from autotyper.events import replay
 from autotyper.fit import fit_duration
 from autotyper.focus import accessibility_trusted, frontmost_app_name
 from autotyper.hotkeys import HotkeyListener
@@ -46,6 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--countdown", type=int, help="seconds to wait before typing (default 5)")
     p.add_argument("--wait-for-key", action="store_true", dest="wait_for_key", help="instead of a countdown, start when the pause key is pressed")
     p.add_argument("--seed", type=int, help="random seed for reproducible runs")
+    p.add_argument("--start-at", type=int, default=0, dest="start_at", help="skip the first N characters (resume after an abort)")
     p.add_argument("--pause-key", dest="pause_key", help="global pause/resume key (default f8)")
     p.add_argument("--abort-key", dest="abort_key", help="global abort key (default esc)")
     p.add_argument("--dry-run", action="store_true", help="print what would be typed, inject nothing")
@@ -97,6 +99,9 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_INPUT
     try:
         text = _read_text(args.text)
+        if args.start_at < 0:
+            raise ValueError("--start-at must be >= 0")
+        text = text[args.start_at :]
         if not text.strip():
             raise ValueError("text is empty")
         cfg = _build_config(args)
@@ -176,9 +181,12 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         hotkeys.stop()
 
-    typed = sum(1 for e in events[: result.pressed] if e.key != "backspace")
     if result.aborted:
-        print(f"aborted after {result.pressed} keystrokes ({typed} characters)")
+        in_field = replay(events[: result.pressed])
+        print(f"aborted after {result.pressed} keystrokes ({len(in_field)} characters in the field)")
+        print(f"resume with --start-at {args.start_at + len(in_field)}")
+        if not text.startswith(in_field):
+            print("the field ends with an unfixed typo: delete it by hand before resuming")
         return EXIT_ABORTED
     print(f"done: {result.pressed} keystrokes")
     print(summary(events))
