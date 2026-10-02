@@ -206,3 +206,8 @@ def test_word_delete_appears_and_text_is_still_reproduced():
 def test_word_delete_rate_zero_never_uses_it():
     events = plan("palabras largas " * 10, cfg(error_rate=1.0, word_delete_rate=0.0), random.Random(1))
     assert not any(e.key == WORD_BACKSPACE for e in events)
+
+
+def test_transposing_identical_letters_never_happens():
+    events = plan("cc " * 40, cfg(error_rate=1.0), random.Random(3))
+    assert not any(e.note == "error:transpose" for e in events)

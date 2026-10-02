@@ -139,8 +139,8 @@ class Planner:
         else:
             kind = self.rng.choices(self._ERROR_KINDS, self._ERROR_WEIGHTS)[0]
 
-        if kind == "transpose" and not nxt.isalpha():
-            kind = "neighbor"
+        if kind == "transpose" and (not nxt.isalpha() or nxt.lower() == ch.lower()):
+            kind = "neighbor"  # swapping identical letters would be an invisible "typo"
         wrong_ch = None
         if kind == "neighbor":
             wrong_ch = neighbor(ch, self.cfg.layout, self.rng)
