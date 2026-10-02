@@ -32,7 +32,12 @@ def run(
     app_name: str | None = None,
     log: Callable[[str], None] = print,
     poll_s: float = 0.1,
+    on_progress: Callable[[int, int, float], None] | None = None,
 ) -> RunResult:
+    total = len(events)
+    remaining = [0.0] * (total + 1)
+    for i in range(total - 1, -1, -1):
+        remaining[i] = remaining[i + 1] + events[i].delay_ms / 1000
     pressed = 0
     try:
         for event in events:
@@ -43,8 +48,10 @@ def run(
                 return RunResult(pressed=pressed, aborted=True)
             injector.press(event.key, event.hold_ms / 1000)
             pressed += 1
+            if on_progress is not None:
+                on_progress(pressed, total, remaining[pressed])
     except KeyboardInterrupt:
-        log("interrupted")
+        log("\ninterrupted")
         return RunResult(pressed=pressed, aborted=True)
     return RunResult(pressed=pressed, aborted=False)
 
@@ -65,22 +72,22 @@ def _wait_until_ready(
             return False
         if controls.paused:
             if not announced_pause:
-                log("paused")
+                log("\npaused")
                 announced_pause = True
             sleep(poll_s)
             continue
         if announced_pause:
-            log("resumed")
+            log("\nresumed")
             announced_pause = False
         if focus_check is not None and app_name:
             front = focus_check()
             if front is not None and front != app_name:
                 if announced_focus != front:
-                    log(f"auto-paused: {front!r} is in front, waiting for {app_name!r}")
+                    log(f"\nauto-paused: {front!r} is in front, waiting for {app_name!r}")
                     announced_focus = front
                 sleep(poll_s)
                 continue
             if announced_focus is not None:
-                log("resumed")
+                log("\nresumed")
                 announced_focus = None
         return True

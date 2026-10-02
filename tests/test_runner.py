@@ -77,3 +77,10 @@ def test_keyboard_interrupt_is_a_clean_abort():
     result = run(EVENTS, inj, Controls(), sleep=sleep)
     assert result == RunResult(pressed=1, aborted=True)
     assert [k for k, _ in inj.pressed] == ["a"]
+
+
+def test_on_progress_reports_done_total_and_remaining():
+    seen = []
+    run(EVENTS, RecordingInjector(), Controls(), sleep=lambda _: None,
+        on_progress=lambda d, t, r: seen.append((d, t, round(r, 3))))
+    assert seen == [(1, 3, 0.5), (2, 3, 0.3), (3, 3, 0.0)]

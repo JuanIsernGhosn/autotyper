@@ -84,6 +84,10 @@ def _build_config(args: argparse.Namespace) -> TypingConfig:
     return merge(cfg, overrides)
 
 
+def _progress(done: int, total: int, remaining_s: float) -> None:
+    print(f"\r  {done}/{total} keys  ~{remaining_s:4.0f} s left ", end="", flush=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.duration is not None and (args.cps is not None or args.wpm is not None):
@@ -152,7 +156,9 @@ def main(argv: list[str] | None = None) -> int:
                 controls,
                 focus_check=frontmost_app_name if cfg.focus_guard else None,
                 app_name=cfg.app_name,
+                on_progress=_progress,
             )
+            print()
         except Exception as exc:  # noqa: BLE001 - surface any injector/OS failure briefly
             print(f"error: typing failed ({type(exc).__name__}): {exc}", file=sys.stderr)
             return EXIT_INPUT

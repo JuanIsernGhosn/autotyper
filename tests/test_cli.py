@@ -202,3 +202,18 @@ def test_duration_with_cps_is_rejected(tmp_path, capsys):
     f.write_text("hola")
     assert cli.main([str(f), "--dry-run", "--duration", "10", "--cps", "5"]) == 1
     assert "--duration" in capsys.readouterr().err
+
+
+def test_progress_line_is_printed_during_real_run(tmp_path, monkeypatch, capsys):
+    f = tmp_path / "t.txt"
+    f.write_text("abc")
+    _fake_env(monkeypatch)
+
+    class FakeInjector:
+        def press(self, key, hold_s):
+            pass
+
+    monkeypatch.setattr(cli, "PynputInjector", FakeInjector)
+    monkeypatch.setattr(cli.time, "sleep", lambda _: None)
+    cli.main([str(f), "--countdown", "0", "--error-rate", "0", "--seed", "1"])
+    assert "3/3" in capsys.readouterr().out
