@@ -31,7 +31,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
-          gh release create "$tag" \
-            --title "$tag" \
-            --generate-notes \
-            dist/*.whl dist/*.tar.gz
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" --clobber dist/*.whl dist/*.tar.gz
+          else
+            gh release create "$tag" \
+              --title "$tag" \
+              --generate-notes \
+              dist/*.whl dist/*.tar.gz
+          fi
